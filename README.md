@@ -8,7 +8,7 @@
 ## Project Setup
 ### 1. Clone the Repo
 ```bash
-git clone https://github.com/your-repo/movie_ratings_api.git
+git clone https://github.com/anthnypaul/movie_ratings_api.git
 cd movie_ratings_api
 ```
 
