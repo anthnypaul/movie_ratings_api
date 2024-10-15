@@ -1,8 +1,10 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
-
+from werkzeug.security import check_password_hash, generate_password_hash
+import jwt
+import datetime
 import os
 from dotenv import load_dotenv
 from database import db, User
@@ -11,6 +13,7 @@ load_dotenv()
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("SQLALCHEMY_DATABASE_URI")
+app.config['SECRET_KEY'] = "temporary_key_for_testing"
 db.init_app(app)
 
 with app.app_context():
@@ -39,7 +42,9 @@ def register_user():
     if email == None:
         return "Email is absent", 400
 
-    newUser = User(username=username, password=password, email=email)
+    hashed_password = generate_password_hash(password)
+    newUser = User(username=username, password=hashed_password, email=email)
+
     try:    
         db.session.add(newUser)
         db.session.commit()
@@ -48,6 +53,28 @@ def register_user():
         return str(e), 500
 
     return "The user has been registered", 201
+
+@app.route('/login', methods=['POST'])
+def login():
+    username = request.json.get("username")
+    password = request.json.get("password")
+
+    if not username or not password:
+        return jsonify({"error": "Username and password are required"}), 400
+
+    user = User.query.filter_by(username=username).first()
+    if user and check_password_hash(user.password, password):
+        token = jwt.encode(
+            {
+                'user_id': user.user_id,  
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+            },
+            app.config['SECRET_KEY'],
+            algorithm="HS256"
+        )
+        return jsonify({"token": token}), 200
+
+    return jsonify({"error": "Invalid username or password"}), 401
 
 @app.route('/')
 def home():
