@@ -109,3 +109,35 @@ def delete_rating(rating_id):
         # Rollback in case of error
         db.session.rollback()
         return jsonify({"msg": "An error occurred while deleting rating."}), 500
+
+# An endpoint that allows users to update their own movie ratings.
+@app.route('/ratings/<int:rating_id>', methods=['PUT'])
+@jwt_required()
+def update_rating(rating_id):
+    try:
+        # Get current user ID from JWT token
+        current_user_id = get_jwt_identity()
+
+        # Get new rating value from request body
+        new_rating = request.json.get('rating', None)
+
+        if new_rating is None or not (1 <= new_rating <= 10):
+            return jsonify({"msg": "A valid rating between 1 and 10 is required."}), 400
+
+        # Fetch the rating from the database
+        rating = Rating.query.filter_by(rating_id=rating_id, user_id=current_user_id).first()
+
+        # Check if rating exists & belongs to current user
+        if rating is None:
+            return jsonify({"msg": "Rating not found or you are NOT allowed to update this rating."}), 404
+
+        # Update rating value
+        rating.rating = new_rating
+        db.session.commit()
+
+        return jsonify({"msg": "Updated rating successfully."}), 200
+
+    except Exception as e:
+        # Rollback in case of an error
+        db.session.rollback()
+        return jsonify({"msg": "An error occurred while updating rating."}), 500
