@@ -112,7 +112,7 @@ def delete_rating(rating_id):
 
 # An endpoint that allows users to update their own movie ratings.
 @app.route('/ratings/<int:rating_id>', methods=['PUT'])
-@jwt_required()
+@jwt_required() # Ensures only authenticated users can update ratings.
 def update_rating(rating_id):
     try:
         # Get current user ID from JWT token
