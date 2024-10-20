@@ -14,6 +14,9 @@ load_dotenv()
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("SQLALCHEMY_DATABASE_URI")
 app.config['SECRET_KEY'] = "temporary_key_for_testing"
+app.config['UPLOAD_FOLDER'] = 'movies/'
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
+
 db.init_app(app)
 
 with app.app_context():
