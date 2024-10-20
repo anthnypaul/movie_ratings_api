@@ -9,7 +9,7 @@ import os
 from dotenv import load_dotenv
 from database import db, User, Rating, Movie
 from flask_jwt_extended import jwt_required, get_jwt_identity # Importing necessary modules for JWT -Baraa
-from werkzeug import secure_filename
+from werkzeug.utils import secure_filename
 
 load_dotenv()
 
