@@ -135,8 +135,30 @@ def submit_rating():
 
 
 # Endpoint to retrieve a list of existing user ratings for all movies
-# [To-Do]
+@app.route('/all-ratings', methods=['GET'])
+def get_all_ratings():
+    try:
+        ratings = Rating.query.all()
 
+        if not ratings:
+            return jsonify({"msg": "No ratings found."}), 404
+
+        ratings_list = []
+        for rating in ratings:
+            movie = Movie.query.filter_by(movie_id=rating.movie_id).first()
+            user = User.query.filter_by(user_id=rating.user_id).first()
+            if movie and user:
+                ratings_list.append({
+                    "movie_title": movie.title,
+                    "username": user.username,
+                    "rating": rating.rating
+                })
+
+        return jsonify(ratings_list), 200
+
+    except Exception as e:
+        return jsonify({"msg": "An error occurred while fetching all ratings."}), 500
+    
 # Endpoint to fetch details for a specific movie, including its user ratings
 @app.route('/movies/<int:movie_id>', methods=['GET'])
 def get_movie_details(movie_id):
@@ -182,7 +204,29 @@ def update_rating(rating_id):
         return jsonify({"msg": "An error occurred while updating the rating."}), 500
 
 # Admin-only endpoint to delete any user's movie rating
-# [To-Do]
+@app.route('/delete-rating/<int:rating_id>', methods=['DELETE'])
+@jwt_required()
+def admin_delete_rating(rating_id):
+    current_user_id = get_jwt_identity()
+
+    current_user = User.query.filter_by(user_id=current_user_id).first()
+    if current_user is None or not current_user.isAdmin:
+        return jsonify({"msg": "Access denied"}), 403
+
+    try:
+        rating = Rating.query.filter_by(rating_id=rating_id).first()
+
+        if rating is None:
+            return jsonify({"msg": "Rating not found."}), 404
+
+        db.session.delete(rating)
+        db.session.commit()
+
+        return jsonify({"msg": "Rating deleted successfully."}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"msg": "An error occurred while deleting the rating."}), 500
 
 # Endpoint for users to delete their own ratings
 @app.route('/ratings/<int:rating_id>', methods=['DELETE'])
