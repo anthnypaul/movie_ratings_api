@@ -207,19 +207,32 @@ def add_movies():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
         file.save(filepath)
 
-        new_movie = Movie(title=file_name, release_year=release_year)
-
-        try:
-            db.session.add(new_movie)
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            return str(e), 500
-
-        
         return jsonify({"msg": f"File '{file.filename} uploaded successfully!"}), 200
     
     return jsonify({"msg": "File upload failed"}), 500
+
+@app.route('/upload', methods=['POST'])
+def upload():
+    # Check if the request contains a file part
+    if 'file' not in request.files:
+        print("Files in request:", request.files)
+        return jsonify({"msg": "No file part in the request"}), 400
+    
+    file = request.files['file']
+
+    # If no file is selected
+    if file.filename == '':
+        return jsonify({"msg": "No file selected for uploading"}), 400
+
+
+    # Save the file to designated folder
+    if file:
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+        file.save(filepath)
+
+        return jsonify({"msg": f"File '{file.filename} uploaded successfully!"}), 200
+
+    return jsonify({"msg": f"File '{file.filename} uploaded successfully!"}), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
