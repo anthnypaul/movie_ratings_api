@@ -27,6 +27,16 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
+@app.route('/check_db')
+def check_db_connection():
+    try:
+        # Establish a connection and execute a simple query using the connection
+        with db.engine.connect() as connection:
+            connection.execute(text('SELECT 1'))
+        return "MySQL connection is working."
+    except OperationalError:
+        return "Failed to connect to MySQL."
+
 # Registration endpoint for user sign-up (Admins and Users)
 @app.route('/register', methods=['POST'])
 def register_user():
@@ -96,7 +106,33 @@ def add_movies():
         return jsonify({"msg": str(e)}), 500
 
 # Endpoint for users to submit ratings for movies (only if movie exists)
-# [To-Do]
+@app.route('/submit-rating', methods=['POST'])
+@jwt_required()
+def submit_rating():
+    current_user_id = get_jwt_identity()
+
+    current_user = User.query.filter_by(user_id=current_user_id).first()
+
+    if current_user is None or current_user.isAdmin:
+        return jsonify({"msg": "Only regular users can submit ratings."}), 403
+
+    movie_title = request.json.get("title")
+    rating_value = request.json.get("rating")
+
+    movie = Movie.query.filter_by(title=movie_title).first()
+    if movie is None:
+        return jsonify({"msg": "Movie not found."}), 404
+
+    new_rating = Rating(movie_id=movie.movie_id, user_id=current_user_id, rating=rating_value)
+
+    try:
+        db.session.add(new_rating)
+        db.session.commit()
+        return jsonify({"msg": "Rating submitted successfully."}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"msg": str(e)}), 500
+
 
 # Endpoint to retrieve a list of existing user ratings for all movies
 # [To-Do]
@@ -165,6 +201,30 @@ def delete_rating(rating_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": "An error occurred while deleting the rating."}), 500
+    
+#Endpoint that supports File Upload and restricts the supported file extensions to only a few   
+@app.route('/upload', methods=['POST'])
+def upload():
+    # Check if the request contains a file part
+    if 'file' not in request.files:
+        print("Files in request:", request.files)
+        return jsonify({"msg": "No file part in the request"}), 400
+    
+    file = request.files['file']
+
+    # If no file is selected
+    if file.filename == '':
+        return jsonify({"msg": "No file selected for uploading"}), 400
+
+
+    # Save the file to designated folder
+    if file:
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+        file.save(filepath)
+
+        return jsonify({"msg": f"File '{file.filename} uploaded successfully!"}), 200
+
+    return jsonify({"msg": f"File '{file.filename} uploaded successfully!"}), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
