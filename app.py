@@ -7,7 +7,8 @@ import jwt
 import datetime
 import os
 from dotenv import load_dotenv
-from database import db, User
+from database import db, User, Rating, Movie
+from flask_jwt_extended import jwt_required, get_jwt_identity # Importing necessary modules for JWT -Baraa
 
 load_dotenv()
 
@@ -85,3 +86,94 @@ def home():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+# An endpoint for users to delete their own ratings.
+@app.route('/ratings/<int:rating_id>', methods=['DELETE'])
+@jwt_required()
+def delete_rating(rating_id):
+    try:
+        # Get current user ID from JWT token
+        current_user_id = get_jwt_identity()
+
+        # Get rating from database
+        rating = Rating.query.filter_by(rating_id=rating_id, user_id=current_user_id).first()
+
+        # Check if rating exists & belongs to current user
+        if rating is None:
+            return jsonify({"msg": "Could NOT find rating, or you ARE NOT allowed to delete rating."}), 404
+
+        # Delete rating
+        db.session.delete(rating)
+        db.session.commit()
+
+        return jsonify({"msg": "Deleted rating successfully."}), 200
+
+    except Exception as e:
+        # Rollback in case of error
+        db.session.rollback()
+        return jsonify({"msg": "An error occurred while deleting rating."}), 500
+
+# An endpoint that allows users to update their own movie ratings.
+@app.route('/ratings/<int:rating_id>', methods=['PUT'])
+@jwt_required() # Ensures only authenticated users can update ratings.
+def update_rating(rating_id):
+    try:
+        # Get current user ID from JWT token
+        current_user_id = get_jwt_identity()
+
+        # Get new rating value from request body
+        new_rating = request.json.get('rating', None)
+
+        if new_rating is None or not (1 <= new_rating <= 10):
+            return jsonify({"msg": "A valid rating between 1 and 10 is required."}), 400
+
+        # Fetch the rating from the database
+        rating = Rating.query.filter_by(rating_id=rating_id, user_id=current_user_id).first()
+
+        # Check if rating exists & belongs to current user
+        if rating is None:
+            return jsonify({"msg": "Rating not found or you are NOT allowed to update this rating."}), 404
+
+        # Update rating value
+        rating.rating = new_rating
+        db.session.commit()
+
+        return jsonify({"msg": "Updated rating successfully."}), 200
+
+    except Exception as e:
+        # Rollback in case of an error
+        db.session.rollback()
+        return jsonify({"msg": "An error occurred while updating rating."}), 500
+
+# An endpoint to fetch details for a specific movie, including its user ratings.
+@app.route('/movies/<int:movie_id>', methods=['GET'])
+def get_movie_details(movie_id):
+    try:
+        # Fetch movie from database
+        movie = Movie.query.filter_by(movie_id=movie_id).first()
+
+        # Check if movie exists
+        if movie is None:
+            return jsonify({"msg": "Movie not found."}), 404
+
+        # Fetch all ratings for the movie
+        ratings = Rating.query.filter_by(movie_id=movie_id).all()
+
+        # Create list of ratings to include in response
+        ratings_list = []
+        for rating in ratings:
+            ratings_list.append({
+                "user_id": rating.user_id,
+                "rating": rating.rating
+            })
+
+        # Return movie details & ratings
+        return jsonify({
+            "movie_id": movie.movie_id,
+            "title": movie.title,
+            "release_year": movie.release_year,
+            "ratings": ratings_list
+        }), 200
+
+    except Exception as e:
+        return jsonify({"msg": "An error occurred while fetching the movie details."}), 500
