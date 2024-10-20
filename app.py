@@ -7,7 +7,7 @@ import jwt
 import datetime
 import os
 from dotenv import load_dotenv
-from database import db, User, Rating
+from database import db, User, Rating, Movie
 from flask_jwt_extended import jwt_required, get_jwt_identity # Importing necessary modules for JWT -Baraa
 
 load_dotenv()
@@ -141,3 +141,36 @@ def update_rating(rating_id):
         # Rollback in case of an error
         db.session.rollback()
         return jsonify({"msg": "An error occurred while updating rating."}), 500
+
+# An endpoint to fetch details for a specific movie, including its user ratings.
+@app.route('/movies/<int:movie_id>', methods=['GET'])
+def get_movie_details(movie_id):
+    try:
+        # Fetch movie from database
+        movie = Movie.query.filter_by(movie_id=movie_id).first()
+
+        # Check if movie exists
+        if movie is None:
+            return jsonify({"msg": "Movie not found."}), 404
+
+        # Fetch all ratings for the movie
+        ratings = Rating.query.filter_by(movie_id=movie_id).all()
+
+        # Create list of ratings to include in response
+        ratings_list = []
+        for rating in ratings:
+            ratings_list.append({
+                "user_id": rating.user_id,
+                "rating": rating.rating
+            })
+
+        # Return movie details & ratings
+        return jsonify({
+            "movie_id": movie.movie_id,
+            "title": movie.title,
+            "release_year": movie.release_year,
+            "ratings": ratings_list
+        }), 200
+
+    except Exception as e:
+        return jsonify({"msg": "An error occurred while fetching the movie details."}), 500
