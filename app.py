@@ -8,8 +8,9 @@ import datetime
 import os
 from dotenv import load_dotenv
 from database import db, User, Rating, Movie
-from flask_jwt_extended import jwt_required, get_jwt_identity # Importing necessary modules for JWT -Baraa
+from flask_jwt_extended import jwt_required, get_jwt_identity, JWTManager, create_access_token # Importing necessary modules for JWT -Baraa
 from werkzeug.utils import secure_filename
+from datetime import timedelta
 
 load_dotenv()
 
@@ -17,11 +18,13 @@ app = Flask(__name__)
 UPLOAD_FOLDER = 'movies/'
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("SQLALCHEMY_DATABASE_URI")
 app.config['SECRET_KEY'] = "temporary_key_for_testing"
+app.config['JWT_HEADER_NAME'] = 'Authorization'
+app.config['JWT_TOKEN_LOCATION'] = ['headers']
+app.config['JWT_HEADER_TYPE'] = 'Bearer'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER 
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+jwt_manager = JWTManager(app)
 
 db.init_app(app)
 
@@ -73,14 +76,7 @@ def login():
 
     user = User.query.filter_by(username=username).first()
     if user and check_password_hash(user.password, password):
-        token = jwt.encode(
-            {
-                'user_id': user.user_id,  
-                'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
-            },
-            app.config['SECRET_KEY'],
-            algorithm="HS256"
-        )
+        token = create_access_token(identity=user.user_id, expires_delta=timedelta(hours=1))
         return jsonify({"token": token}), 200
 
     return jsonify({"error": "Invalid username or password"}), 401
@@ -186,14 +182,15 @@ def get_movie_details(movie_id):
 def add_movies():
     current_user_id = get_jwt_identity()
 
-    current_user = User.query.filter_by(user_id=current_user_id)
+    current_user = User.query.filter_by(user_id=current_user_id).first()
 
     # Check if user is Admin
     if current_user == None or not current_user.isAdmin:
         return jsonify({"msg": "Access denied"}), 403
     
     # If no file is selected
-    if 'file' not in request.file:
+    if 'file' not in request.files:
+        print("Files in request:", request.files)
         return jsonify({"msg": "No file part in the request"}), 400
     
     file = request.files['file']
