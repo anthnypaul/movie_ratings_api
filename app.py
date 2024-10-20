@@ -89,8 +89,6 @@ def login():
 def home():
     return "Hello, Flask!"
 
-if __name__ == '__main__':
-    app.run(debug=True)
 
 # An endpoint for users to delete their own ratings.
 @app.route('/ratings/<int:rating_id>', methods=['DELETE'])
@@ -183,7 +181,8 @@ def get_movie_details(movie_id):
     except Exception as e:
         return jsonify({"msg": "An error occurred while fetching the movie details."}), 500
 
-@app.route('/add-movies', method = ['POST'])
+@app.route('/add-movies', methods=['POST'])
+@jwt_required()
 def add_movies():
     current_user_id = get_jwt_identity()
 
@@ -195,14 +194,14 @@ def add_movies():
     
     # If no file is selected
     if 'file' not in request.file:
-        return jsonify({"message": "No file part in the request"}), 400
+        return jsonify({"msg": "No file part in the request"}), 400
     
     file = request.files['file']
     release_year = request.json.get("release_year", None)
 
     # Save the file to designated folder
     if file.filename == '':
-        return jsonify({"message": "No file selected for uploading"}), 400
+        return jsonify({"msg": "No file selected for uploading"}), 400
 
 
     if file:
@@ -221,6 +220,9 @@ def add_movies():
             return str(e), 500
 
         
-        return jsonify({"message": f"File '{file.filename} uploaded successfully!"}), 200
+        return jsonify({"msg": f"File '{file.filename} uploaded successfully!"}), 200
     
-    return jsonify({"message": "File upload failed"}), 500
+    return jsonify({"msg": "File upload failed"}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True)
