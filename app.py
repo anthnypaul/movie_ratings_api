@@ -9,14 +9,19 @@ import os
 from dotenv import load_dotenv
 from database import db, User, Rating, Movie
 from flask_jwt_extended import jwt_required, get_jwt_identity # Importing necessary modules for JWT -Baraa
+from werkzeug import secure_filename
 
 load_dotenv()
 
 app = Flask(__name__)
+UPLOAD_FOLDER = 'movies/'
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("SQLALCHEMY_DATABASE_URI")
 app.config['SECRET_KEY'] = "temporary_key_for_testing"
-app.config['UPLOAD_FOLDER'] = 'movies/'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER 
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
+
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
 
 db.init_app(app)
 
@@ -177,3 +182,45 @@ def get_movie_details(movie_id):
 
     except Exception as e:
         return jsonify({"msg": "An error occurred while fetching the movie details."}), 500
+
+@app.route('/add-movies', method = ['POST'])
+def add_movies():
+    current_user_id = get_jwt_identity()
+
+    current_user = User.query.filter_by(user_id=current_user_id)
+
+    # Check if user is Admin
+    if current_user == None or not current_user.isAdmin:
+        return jsonify({"msg": "Access denied"}), 403
+    
+    # If no file is selected
+    if 'file' not in request.file:
+        return jsonify({"message": "No file part in the request"}), 400
+    
+    file = request.files['file']
+    release_year = request.json.get("release_year", None)
+
+    # Save the file to designated folder
+    if file.filename == '':
+        return jsonify({"message": "No file selected for uploading"}), 400
+
+
+    if file:
+
+        file_name = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+        file.save(filepath)
+
+        new_movie = Movie(title=file_name, release_year=release_year)
+
+        try:
+            db.session.add(new_movie)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return str(e), 500
+
+        
+        return jsonify({"message": f"File '{file.filename} uploaded successfully!"}), 200
+    
+    return jsonify({"message": "File upload failed"}), 500
