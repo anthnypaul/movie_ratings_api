@@ -47,5 +47,5 @@ You can access the application using `http://127.0.0.1:5000`.
 ### Group 3
 Paul Bagabaldo 2597\
 Joksan Hernandez 1663\
-Baraa Damer 7386
+Baraa Damer 7386\
 Ugo Ndupu 7613
