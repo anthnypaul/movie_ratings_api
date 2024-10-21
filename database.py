@@ -36,4 +36,3 @@ class Rating(db.Model):
 
     def __repr__(self):
         return f"<Rating {self.rating_id}"
- 
