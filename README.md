@@ -45,5 +45,5 @@ python app.py
 You can access the application using `http://127.0.0.1:5000`.
 
 ### Group 3
-Paul Bagabaldo 2597
+Paul Bagabaldo 2597\
 Joksan Hernandez 1663
