@@ -16,6 +16,7 @@ load_dotenv()
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'movies/'
+ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov'}
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("SQLALCHEMY_DATABASE_URI")
 app.config['SECRET_KEY'] = "temporary_key_for_testing"
 app.config['JWT_HEADER_NAME'] = 'Authorization'
@@ -224,15 +225,19 @@ def upload():
     if file.filename == '':
         return jsonify({"msg": "No file selected for uploading"}), 400
 
+    sanitized_filename = secure_filename(file.filename)
 
     # Save the file to designated folder
-    if file:
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+    if file and allowed_file(sanitized_filename):
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], sanitized_filename)
         file.save(filepath)
 
-        return jsonify({"msg": f"File '{file.filename} uploaded successfully!"}), 200
+        return jsonify({"msg": f"File '{sanitized_filename}' uploaded successfully!"}), 200
 
-    return jsonify({"msg": f"File '{file.filename} uploaded successfully!"}), 200
+    return jsonify({"msg": f"Invalid file type for '{sanitized_filename}'. Allowed file types are {ALLOWED_EXTENSIONS}"}), 415 
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 if __name__ == '__main__':
     app.run(debug=True)
