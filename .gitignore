@@ -2,3 +2,4 @@ virtualEnv/
 .env
 *.pyc
 __pycache__/
+movies/*
